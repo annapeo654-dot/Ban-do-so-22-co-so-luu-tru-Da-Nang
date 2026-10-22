@@ -1,0 +1,269 @@
+<!doctype html>
+<html lang="vi">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Bản đồ số 22 cơ sở lưu trú Đà Nẵng</title>
+
+  <!-- Thẻ Open Graph & Meta Tags hiển thị dòng truyền link trên Zalo/Facebook -->
+  <meta name="description" content="Bản đồ số 22 cơ sở lưu trú Đà Nẵng: tra cứu khách sạn 3, 4, 5 sao và homestay từ dữ liệu khảo sát Excel.">
+  <meta property="og:title" content="Bản đồ số 22 cơ sở lưu trú Đà Nẵng">
+  <meta property="og:description" content="Bản đồ số 22 cơ sở lưu trú Đà Nẵng: tra cứu khách sạn 3, 4, 5 sao và homestay từ dữ liệu khảo sát Excel.">
+  <meta property="og:type" content="website">
+
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+  <style>
+    :root {
+      --bg-dark: #0b1320;
+      --panel-bg: #111a2e;
+      --card-bg: #18243c;
+      --card-hover: #20304f;
+      --text-main: #f1f5f9;
+      --text-sub: #94a3b8;
+      --border-color: #233352;
+      --accent: #2563eb;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body, html { width: 100%; height: 100%; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: var(--bg-dark); color: var(--text-main); overflow: hidden; }
+
+    .app-container { display: grid; grid-template-columns: 350px 1fr; grid-template-rows: 60px 1fr; height: 100vh; width: 100vw; }
+
+    /* Top Bar chuẩn mẫu */
+    .top-bar { grid-column: 1 / -1; background: var(--panel-bg); border-bottom: 1px solid var(--border-color); display: flex; align-items: center; justify-content: space-between; padding: 0 20px; z-index: 1100; }
+    .top-brand { display: flex; align-items: center; gap: 10px; }
+    .top-logo { width: 34px; height: 34px; background: linear-gradient(135deg, #3b82f6, #6366f1); border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 18px; }
+    .top-title { font-size: 14px; font-weight: 700; color: #fff; }
+    .top-stats { display: flex; gap: 12px; font-size: 12px; font-weight: 600; }
+    .stat-badge { background: #1e293b; padding: 5px 10px; border-radius: 6px; border: 1px solid var(--border-color); color: #38bdf8; }
+
+    /* Left Sidebar */
+    .sidebar-left { background: var(--panel-bg); border-right: 1px solid var(--border-color); display: flex; flex-direction: column; z-index: 1000; height: calc(100vh - 60px); overflow: hidden; }
+    
+    .filter-box { padding: 12px 16px; border-bottom: 1px solid var(--border-color); flex-shrink: 0; }
+    .filter-select { width: 100%; padding: 10px 12px; background: var(--card-bg); border: 1px solid var(--border-color); border-radius: 8px; color: #fff; font-size: 13px; outline: none; cursor: pointer; }
+    
+    .search-box { padding: 10px 16px; flex-shrink: 0; }
+    .search-input { width: 100%; padding: 10px 12px; background: var(--card-bg); border: 1px solid var(--border-color); border-radius: 8px; color: #fff; font-size: 13px; outline: none; }
+    
+    .place-list { flex: 1; overflow-y: auto; padding: 0 16px 16px 16px; }
+    .place-item { display: flex; gap: 10px; background: var(--card-bg); border: 1px solid var(--border-color); border-radius: 8px; padding: 10px; margin-bottom: 8px; cursor: pointer; transition: all 0.2s; }
+    .place-item:hover, .place-item.active { background: var(--card-hover); border-color: #3b82f6; }
+    .place-thumb { width: 55px; height: 55px; border-radius: 6px; object-fit: cover; flex-shrink: 0; }
+    .place-info { flex: 1; min-width: 0; }
+    .place-tag { font-size: 10px; color: #38bdf8; font-weight: 600; }
+    .place-name { font-size: 12px; font-weight: 700; color: #fff; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-top: 2px; }
+    .place-addr { font-size: 10px; color: var(--text-sub); margin-top: 3px; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+
+    /* Center Map */
+    .map-container { position: relative; width: 100%; height: calc(100vh - 60px); }
+    #map { width: 100%; height: 100%; background: #0b1320; }
+    .leaflet-tile-pane { filter: invert(0.95) hue-rotate(180deg) saturate(0.6) brightness(0.8); }
+
+    /* Custom Map Pins */
+    .custom-pin { display: flex; justify-content: center; align-items: center; width: 36px; height: 36px; background: #111a2e; border: 2px solid #38bdf8; border-radius: 50%; box-shadow: 0 4px 12px rgba(0,0,0,0.6); font-size: 18px; }
+    .custom-pin.star { border-color: #fbbf24; background: #1e1b4b; }
+    .custom-pin.hotel4 { border-color: #3b82f6; background: #0f172a; }
+    .custom-pin.hotel3 { border-color: #14b8a6; background: #042f2e; }
+    .custom-pin.homestay { border-color: #10b981; background: #064e3b; }
+
+    /* Leaflet Popup Card chuẩn như mẫu */
+    .leaflet-popup-content-wrapper { background: #111a2e !important; color: #f1f5f9 !important; border: 1px solid var(--border-color); border-radius: 12px; padding: 0; overflow: hidden; box-shadow: 0 10px 25px rgba(0,0,0,0.7); }
+    .leaflet-popup-content { margin: 0 !important; width: 280px !important; }
+    .leaflet-popup-tip { background: #111a2e !important; }
+    .popup-card { display: flex; flex-direction: column; }
+    .popup-img { width: 100%; height: 140px; object-fit: cover; }
+    .popup-body { padding: 12px; display: flex; flex-direction: column; gap: 6px; }
+    .popup-tag { font-size: 10px; color: #38bdf8; font-weight: 600; }
+    .popup-title { font-size: 14px; font-weight: 700; color: #fff; }
+    .popup-addr { font-size: 11px; color: var(--text-sub); }
+    .popup-btn { display: block; text-align: center; background: #14b8a6; color: #042f2e; font-weight: 700; font-size: 12px; padding: 8px; border-radius: 6px; text-decoration: none; margin-top: 6px; }
+
+    /* Modal Chi tiết cho Mobile/Desktop */
+    .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.7); display: none; align-items: center; justify-content: center; z-index: 2000; padding: 16px; backdrop-filter: blur(4px); }
+    .modal-content { background: var(--panel-bg); border: 1px solid var(--border-color); border-radius: 12px; width: 100%; max-width: 450px; max-height: 90vh; overflow-y: auto; padding: 16px; display: flex; flex-direction: column; gap: 12px; }
+    .modal-header { display: flex; justify-content: space-between; align-items: center; }
+    .modal-close { background: none; border: none; color: #fff; font-size: 20px; cursor: pointer; }
+
+    /* Responsive tương thích Điện thoại (< 900px) */
+    @media (max-width: 900px) {
+      body, html { overflow: auto; height: auto; }
+      .app-container { display: flex; flex-direction: column; height: auto; width: 100%; }
+      .top-bar { height: 50px; padding: 0 12px; }
+      .top-title { font-size: 12px; }
+      .top-stats { display: none; }
+      .map-container { height: 350px; width: 100%; order: 1; }
+      .sidebar-left { height: auto; max-height: 400px; order: 2; border-right: none; }
+    }
+  </style>
+</head>
+<body>
+
+<div class="app-container">
+  <!-- Top Bar -->
+  <header class="top-bar">
+    <div class="top-brand">
+      <div class="top-logo">🏨</div>
+      <div class="top-title">Bản đồ số Cơ sở lưu trú Đà Nẵng</div>
+    </div>
+    <div class="top-stats">
+      <div class="stat-badge">22 cơ sở lưu trú</div>
+      <div class="stat-badge">04 nhóm phân loại</div>
+    </div>
+  </header>
+
+  <!-- Cột trái: Bộ lọc & Danh sách -->
+  <aside class="sidebar-left">
+    <div class="filter-box">
+      <select id="groupFilter" class="filter-select">
+        <option value="all">Tất cả 22 cơ sở</option>
+        <option value="Khách sạn/Resort 5 sao">KS / Resort 5 sao</option>
+        <option value="Khách sạn 4 sao">Khách sạn 4 sao</option>
+        <option value="Khách sạn 3 sao">Khách sạn 3 sao</option>
+        <option value="Homestay">Homestay</option>
+      </select>
+    </div>
+    <div class="search-box">
+      <input type="text" id="searchInput" class="search-input" placeholder="🔍 Tìm theo tên, mã điểm, địa chỉ...">
+    </div>
+    <div class="place-list" id="placeList"></div>
+  </aside>
+
+  <!-- Bản đồ Leaflet -->
+  <main class="map-container">
+    <div id="map"></div>
+  </main>
+</div>
+
+<!-- Modal Chi tiết cơ sở lưu trú -->
+<div class="modal-overlay" id="detailModal">
+  <div class="modal-content">
+    <div class="modal-header">
+      <h3 id="modalTitle" style="font-size: 15px; font-weight: 700; color: #fff;">Chi tiết cơ sở</h3>
+      <button class="modal-close" onclick="closeModal()">✕</button>
+    </div>
+    <div style="position: relative; height: 200px; border-radius: 8px; overflow: hidden;">
+      <img id="modalImg" src="" alt="Ảnh" style="width: 100%; height: 100%; object-fit: cover;">
+    </div>
+    <div style="font-size: 12px; color: #38bdf8; font-weight: 600;" id="modalGroup"></div>
+    <div style="font-size: 13px; color: var(--text-sub);" id="modalAddr"></div>
+    <div style="background: var(--card-bg); padding: 10px; border-radius: 6px; font-size: 12px; color: #cbd5e1;" id="modalDesc"></div>
+    <a id="modalRoute" href="#" target="_blank" style="display: block; text-align: center; background: var(--accent); color: #fff; padding: 10px; border-radius: 6px; text-decoration: none; font-weight: 700; font-size: 13px;">🗺️ Chỉ đường bằng Google Maps</a>
+  </div>
+</div>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="du_lieu.js"></script>
+<script>
+  window.addEventListener('DOMContentLoaded', () => {
+    const places = window.DANANG_PLACES || [];
+    if (!places || places.length === 0) return;
+
+    let selectedGroup = 'all';
+
+    const map = L.map('map', { zoomControl: false }).setView([16.068, 108.225], 13);
+    L.control.zoom({ position: 'bottomright' }).addTo(map);
+
+    L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      maxZoom: 19,
+      attribution: '&copy; OpenStreetMap'
+    }).addTo(map);
+
+    const markers = new Map();
+
+    function getFilteredPlaces() {
+      const q = document.getElementById('searchInput').value.toLowerCase();
+      return places.filter(p => {
+        const matchGroup = (selectedGroup === 'all' || p.group === selectedGroup);
+        const matchSearch = p.name.toLowerCase().includes(q) || p.id.toLowerCase().includes(q) || p.address.toLowerCase().includes(q);
+        return matchGroup && matchSearch;
+      });
+    }
+
+    function renderList() {
+      const listEl = document.getElementById('placeList');
+      listEl.innerHTML = '';
+      const filtered = getFilteredPlaces();
+
+      filtered.forEach(p => {
+        const item = document.createElement('div');
+        item.className = 'place-item';
+        item.onclick = () => {
+          map.flyTo([p.lat, p.lng], 15, { duration: 0.8 });
+          markers.get(p.id).openPopup();
+        };
+        item.innerHTML = `
+          <img class="place-thumb" src="${p.images[0]}" alt="${p.name}">
+          <div class="place-info">
+            <div class="place-tag">${p.id} &bull; ${p.group}</div>
+            <div class="place-name">${p.name}</div>
+            <div class="place-addr">${p.address}</div>
+          </div>
+        `;
+        listEl.appendChild(item);
+      });
+    }
+
+    function initMarkers() {
+      markers.forEach(m => map.removeLayer(m));
+      markers.clear();
+
+      const filtered = getFilteredPlaces();
+      filtered.forEach(p => {
+        const customIcon = L.divIcon({
+          className: 'custom-pin-wrapper',
+          html: `<div class="custom-pin ${p.iconType}">${p.pinEmoji}</div>`,
+          iconSize: [36, 36],
+          iconAnchor: [18, 18]
+        });
+
+        const popupContent = `
+          <div class="popup-card">
+            <img class="popup-img" src="${p.images[0]}" alt="${p.name}">
+            <div class="popup-body">
+              <div class="popup-tag">${p.id} &bull; ${p.group}</div>
+              <div class="popup-title">${p.name}</div>
+              <div class="popup-addr">${p.address}</div>
+              <button class="popup-btn" onclick="openModal('${p.id}')">Xem thông tin chi tiết →</button>
+            </div>
+          </div>
+        `;
+
+        const marker = L.marker([p.lat, p.lng], { icon: customIcon }).addTo(map);
+        marker.bindPopup(popupContent);
+        markers.set(p.id, marker);
+      });
+    }
+
+    window.openModal = function(id) {
+      const p = places.find(x => x.id === id);
+      if (!p) return;
+      document.getElementById('modalTitle').textContent = p.name;
+      document.getElementById('modalImg').src = p.images[0];
+      document.getElementById('modalGroup').textContent = `${p.id} • ${p.group} • ${p.star}`;
+      document.getElementById('modalAddr').textContent = `📍 ${p.address}`;
+      document.getElementById('modalDesc').textContent = p.description;
+      document.getElementById('modalRoute').href = `https://www.google.com/maps/dir/?api=1&destination=${p.lat},${p.lng}`;
+      document.getElementById('detailModal').style.display = 'flex';
+    }
+
+    window.closeModal = function() {
+      document.getElementById('detailModal').style.display = 'none';
+    }
+
+    document.getElementById('groupFilter').addEventListener('change', (e) => {
+      selectedGroup = e.target.value;
+      renderList();
+      initMarkers();
+    });
+
+    document.getElementById('searchInput').addEventListener('input', () => {
+      renderList();
+      initMarkers();
+    });
+
+    initMarkers();
+    renderList();
+  });
+</script>
+</body>
+</html>
